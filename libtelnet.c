@@ -18,6 +18,11 @@
 #include <string.h>
 #include <stdarg.h>
 
+#if defined(_MSC_VER)
+	/* warning C4996: '{0}': The POSIX name for this item is deprecated. Instead, use the ISO C and C++ conformant name: {1}. See online help for details. */
+#pragma warning(disable : 4996)
+#endif
+
 /* Win32 compatibility */
 #if defined(_WIN32)
 # define vsnprintf _vsnprintf
@@ -171,21 +176,21 @@ telnet_error_t _init_zlib(telnet_t *telnet, int deflate, int err_fatal) {
 				err_fatal, "cannot initialize compression twice");
 
 	/* allocate zstream box */
-	if ((z= (z_stream *)calloc(1, sizeof(z_stream))) == 0)
+	if ((z= (z_stream *)TELNET_CALLOC(1, sizeof(z_stream))) == 0)
 		return _error(telnet, __LINE__, __func__, TELNET_ENOMEM, err_fatal,
-				"malloc() failed: %s", strerror(errno));
+				"TELNET_CALLOC() failed: %s", strerror(errno));
 
 	/* initialize */
 	if (deflate) {
 		if ((rs = deflateInit(z, Z_DEFAULT_COMPRESSION)) != Z_OK) {
-			free(z);
+			TELNET_FREE(z);
 			return _error(telnet, __LINE__, __func__, TELNET_ECOMPRESS,
 					err_fatal, "deflateInit() failed: %s", zError(rs));
 		}
 		telnet->flags |= TELNET_PFLAG_DEFLATE;
 	} else {
 		if ((rs = inflateInit(z)) != Z_OK) {
-			free(z);
+			TELNET_FREE(z);
 			return _error(telnet, __LINE__, __func__, TELNET_ECOMPRESS,
 					err_fatal, "inflateInit() failed: %s", zError(rs));
 		}
@@ -222,7 +227,7 @@ static void _send(telnet_t *telnet, const char *buffer,
 				_error(telnet, __LINE__, __func__, TELNET_ECOMPRESS, 1,
 						"deflate() failed: %s", zError(rs));
 				deflateEnd(telnet->z);
-				free(telnet->z);
+				TELNET_FREE(telnet->z);
 				telnet->z = 0;
 				break;
 			}
@@ -331,11 +336,11 @@ static INLINE void _set_rfc1143(telnet_t *telnet, unsigned char telopt,
     /* Did we reach the end of the table? */
 	if (telnet->q_cnt >= telnet->q_size) {
 		/* Expand the size */
-		if ((qtmp = (telnet_rfc1143_t *)realloc(telnet->q,
+		if ((qtmp = (telnet_rfc1143_t *)TELNET_REALLOC(telnet->q,
 			sizeof(telnet_rfc1143_t) *
             	(telnet->q_size + Q_BUFFER_GROWTH_QUANTUM))) == 0) {
 			_error(telnet, __LINE__, __func__, TELNET_ENOMEM, 0,
-					"realloc() failed: %s", strerror(errno));
+					"TELNET_REALLOC() failed: %s", strerror(errno));
 			return;
 		}
 		memset(&qtmp[telnet->q_size], 0, sizeof(telnet_rfc1143_t) *
@@ -582,10 +587,10 @@ static int _environ_telnet(telnet_t *telnet, unsigned char type,
 	}
 
 	/* allocate argument array, bail on error */
-	if ((values = (struct telnet_environ_t *)calloc(count,
+	if ((values = (struct telnet_environ_t *)TELNET_CALLOC(count,
 			sizeof(struct telnet_environ_t))) == 0) {
 		_error(telnet, __LINE__, __func__, TELNET_ENOMEM, 0,
-				"calloc() failed: %s", strerror(errno));
+				"TELNET_CALLOC() failed: %s", strerror(errno));
 		return 0;
 	}
 
@@ -655,7 +660,7 @@ static int _environ_telnet(telnet_t *telnet, unsigned char type,
 	telnet->eh(telnet, &ev, telnet->ud);
 
 	/* clean up */
-	free(values);
+	TELNET_FREE(values);
 	return 0;
 }
 
@@ -688,10 +693,10 @@ static int _mssp_telnet(telnet_t *telnet, char* buffer, size_t size) {
 	}
 
 	/* allocate argument array, bail on error */
-	if ((values = (struct telnet_environ_t *)calloc(count,
+	if ((values = (struct telnet_environ_t *)TELNET_CALLOC(count,
 			sizeof(struct telnet_environ_t))) == 0) {
 		_error(telnet, __LINE__, __func__, TELNET_ENOMEM, 0,
-				"calloc() failed: %s", strerror(errno));
+				"TELNET_CALLOC() failed: %s", strerror(errno));
 		return 0;
 	}
 
@@ -719,7 +724,7 @@ static int _mssp_telnet(telnet_t *telnet, char* buffer, size_t size) {
 		} else {
 			_error(telnet, __LINE__, __func__, TELNET_EPROTOCOL, 0,
 					"invalid MSSP subnegotiation data");
-			free(values);
+			TELNET_FREE(values);
 			return 0;
 		}
 
@@ -733,7 +738,7 @@ static int _mssp_telnet(telnet_t *telnet, char* buffer, size_t size) {
 	telnet->eh(telnet, &ev, telnet->ud);
 
 	/* clean up */
-	free(values);
+	TELNET_FREE(values);
 
 	return 0;
 }
@@ -757,9 +762,9 @@ static int _zmp_telnet(telnet_t *telnet, const char* buffer, size_t size) {
 		c += strlen(c) + 1;
 
 	/* allocate argument array, bail on error */
-	if ((argv = (char **)calloc(argc, sizeof(char *))) == 0) {
+	if ((argv = (char **)TELNET_CALLOC(argc, sizeof(char *))) == 0) {
 		_error(telnet, __LINE__, __func__, TELNET_ENOMEM, 0,
-				"calloc() failed: %s", strerror(errno));
+				"TELNET_CALLOC() failed: %s", strerror(errno));
 		return 0;
 	}
 
@@ -776,7 +781,7 @@ static int _zmp_telnet(telnet_t *telnet, const char* buffer, size_t size) {
 	telnet->eh(telnet, &ev, telnet->ud);
 
 	/* clean up */
-	free(argv);
+	TELNET_FREE(argv);
 	return 0;
 }
 
@@ -804,9 +809,9 @@ static int _ttype_telnet(telnet_t *telnet, const char* buffer, size_t size) {
 		char *name;
 
 		/* allocate space for name */
-		if ((name = (char *)malloc(size)) == 0) {
+		if ((name = (char *)TELNET_MALLOC(size)) == 0) {
 			_error(telnet, __LINE__, __func__, TELNET_ENOMEM, 0,
-					"malloc() failed: %s", strerror(errno));
+					"TELNET_CALLOC() failed: %s", strerror(errno));
 			return 0;
 		}
 		memcpy(name, buffer + 1, size - 1);
@@ -818,7 +823,7 @@ static int _ttype_telnet(telnet_t *telnet, const char* buffer, size_t size) {
 		telnet->eh(telnet, &ev, telnet->ud);
 
 		/* clean up */
-		free(name);
+		TELNET_FREE(name);
 	} else {
 		ev.type = TELNET_EV_TTYPE;
 		ev.ttype.cmd = TELNET_TTYPE_SEND;
@@ -878,7 +883,7 @@ static int _subnegotiate(telnet_t *telnet) {
 telnet_t *telnet_init(const telnet_telopt_t *telopts,
 		telnet_event_handler_t eh, unsigned char flags, void *user_data) {
 	/* allocate structure */
-	struct telnet_t *telnet = (telnet_t*)calloc(1, sizeof(telnet_t));
+	struct telnet_t *telnet = (telnet_t*)TELNET_CALLOC(1, sizeof(telnet_t));
 	if (telnet == 0)
 		return 0;
 
@@ -895,7 +900,7 @@ telnet_t *telnet_init(const telnet_telopt_t *telopts,
 void telnet_free(telnet_t *telnet) {
 	/* free sub-request buffer */
 	if (telnet->buffer != 0) {
-		free(telnet->buffer);
+		TELNET_FREE(telnet->buffer);
 		telnet->buffer = 0;
 		telnet->buffer_size = 0;
 		telnet->buffer_pos = 0;
@@ -908,21 +913,21 @@ void telnet_free(telnet_t *telnet) {
 			deflateEnd(telnet->z);
 		else
 			inflateEnd(telnet->z);
-		free(telnet->z);
+		TELNET_FREE(telnet->z);
 		telnet->z = 0;
 	}
 #endif /* defined(HAVE_ZLIB) */
 
 	/* free RFC1143 queue */
 	if (telnet->q) {
-		free(telnet->q);
+		TELNET_FREE(telnet->q);
 		telnet->q = NULL;
 		telnet->q_size = 0;
 		telnet->q_cnt = 0;
 	}
 
 	/* free the telnet structure itself */
-	free(telnet);
+	TELNET_FREE(telnet);
 }
 
 /* push a byte into the telnet buffer */
@@ -948,10 +953,10 @@ static telnet_error_t _buffer_byte(telnet_t *telnet,
 		}
 
 		/* (re)allocate buffer */
-		new_buffer = (char *)realloc(telnet->buffer, _buffer_sizes[i + 1]);
+		new_buffer = (char *)TELNET_REALLOC(telnet->buffer, _buffer_sizes[i + 1]);
 		if (new_buffer == 0) {
 			_error(telnet, __LINE__, __func__, TELNET_ENOMEM, 0,
-					"realloc() failed");
+					"TELNET_REALLOC() failed");
 			return TELNET_ENOMEM;
 		}
 
@@ -1211,7 +1216,7 @@ void telnet_recv(telnet_t *telnet, const char *buffer,
 
 				/* disable compression */
 				inflateEnd(telnet->z);
-				free(telnet->z);
+				TELNET_FREE(telnet->z);
 				telnet->z = 0;
 
 				/* send event */
@@ -1475,10 +1480,10 @@ int telnet_vprintf(telnet_t *telnet, const char *fmt, va_list va) {
 	va_end(va_temp);
 
 	if (rs >= sizeof(buffer)) {
-		output = (char*)malloc(rs + 1);
+		output = (char*)TELNET_MALLOC(rs + 1);
 		if (output == 0) {
 			_error(telnet, __LINE__, __func__, TELNET_ENOMEM, 0,
-					"malloc() failed: %s", strerror(errno));
+					"TELNET_CALLOC() failed: %s", strerror(errno));
 			return -1;
 		}
 
@@ -1516,7 +1521,7 @@ int telnet_vprintf(telnet_t *telnet, const char *fmt, va_list va) {
 
 	/* free allocated memory, if any */
 	if (output != buffer) {
-		free(output);
+		TELNET_FREE(output);
 	}
 
 	return rs;
@@ -1547,10 +1552,10 @@ int telnet_raw_vprintf(telnet_t *telnet, const char *fmt, va_list va) {
 	va_end(va_temp);
 
 	if (rs >= sizeof(buffer)) {
-		output = (char*)malloc(rs + 1);
+		output = (char*)TELNET_MALLOC(rs + 1);
 		if (output == 0) {
 			_error(telnet, __LINE__, __func__, TELNET_ENOMEM, 0,
-					"malloc() failed: %s", strerror(errno));
+					"TELNET_CALLOC() failed: %s", strerror(errno));
 			return -1;
 		}
 
@@ -1564,7 +1569,7 @@ int telnet_raw_vprintf(telnet_t *telnet, const char *fmt, va_list va) {
 
 	/* release allocated memory, if any */
 	if (output != buffer) {
-		free(output);
+		TELNET_FREE(output);
 	}
 
 	return rs;

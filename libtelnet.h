@@ -42,6 +42,28 @@
 #if !defined(LIBTELNET_INCLUDE)
 #define LIBTELNET_INCLUDE 1
 
+extern void* mmud_thirdparty_memhook_calloc(size_t num, size_t sz);
+extern void  mmud_thirdparty_memhook_free(void* ptr);
+extern void* mmud_thirdparty_memhook_malloc(size_t sz);
+extern void* mmud_thirdparty_memhook_realloc(void* ptr, size_t sz);
+#define TELNET_CALLOC(num, size)   mmud_thirdparty_memhook_calloc((num), (size))
+#define TELNET_MALLOC(size)        mmud_thirdparty_memhook_malloc(size)
+#define TELNET_REALLOC(ptr, size)  mmud_thirdparty_memhook_realloc((ptr), (size))
+#define TELNET_FREE(ptr)           mmud_thirdparty_memhook_free(ptr)
+
+#ifndef TELNET_CALLOC
+#define TELNET_CALLOC(num, size)   calloc((num), (size))
+#endif
+#ifndef TELNET_MALLOC
+#define TELNET_MALLOC(size)        malloc(size)
+#endif
+#ifndef TELNET_REALLOC
+#define TELNET_REALLOC(ptr, size)  realloc((ptr), (size))
+#endif
+#ifndef TELNET_FREE
+#define TELNET_FREE(ptr)           free(ptr)
+#endif
+
 /* standard C headers necessary for the libtelnet API */
 #include <stdarg.h>
 #include <stddef.h>
